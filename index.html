@@ -269,7 +269,8 @@
     const PUSH = 5;         // how hard the pointer pushes
     const SPRING = 0.018;   // how strongly emojis return home
     const DAMPING = 0.86;   // lower = settles faster, higher = floatier
-    const BOB = 3;          // idle drift (px)
+    const BOB = 3;          // idle bob (px)
+    const DRIFT = 5;        // how fast resting spots wander (px per second)
     const TEXT_GAP = 14;    // space kept clear around the text (px)
 
     const FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -322,7 +323,7 @@
       return sprites.get(key);
     }
 
-    let W = 0, H = 0, dpr = 1, parts = [];
+    let W = 0, H = 0, dpr = 1, parts = [], boxes = [];
 
     // Boxes around each line of the headline and subhead, kept clear of emojis.
     function textBoxes(heroRect) {
@@ -350,7 +351,7 @@
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
 
-      const boxes = textBoxes(rect);
+      boxes = textBoxes(rect);
       const small = W < 600;
       const [minS, maxS] = small ? [18, 26] : [22, 36];
       const count = Math.round(Math.min(40, Math.max(12, (W * H) / 9000)));
@@ -371,12 +372,46 @@
           img: sprite(e, s, dpr),
           rot: (Math.random() - 0.5) * 0.5,
           phase: Math.random() * Math.PI * 2,
+          heading: Math.random() * Math.PI * 2,
+          turn: 0,
           x: entrance ? origin.x : hx,
           y: entrance ? origin.y : hy,
           vx: entrance ? (hx - origin.x) * 0.09 : 0,
           vy: entrance ? (hy - origin.y) * 0.09 : 0,
           start: entrance ? now + Math.random() * 250 : 0,
         });
+      }
+    }
+
+    // Is a resting spot off the hero, or on top of the text?
+    function blocked(x, y, r) {
+      if (x - r < 0 || y - r < 0 || x + r > W || y + r > H) return true;
+      return boxes.some((b) => x + r > b.l && x - r < b.r && y + r > b.t && y - r < b.b);
+    }
+
+    // Would moving p's resting spot to (x, y) crowd a neighbour (and get closer)?
+    function crowds(p, x, y) {
+      return parts.some((o) => {
+        if (o === p) return false;
+        const gap = (o.s + p.s) / 2 + 6;
+        const now = Math.hypot(o.hx - x, o.hy - y);
+        return now < gap && now < Math.hypot(o.hx - p.hx, o.hy - p.hy);
+      });
+    }
+
+    // Each resting spot wanders slowly, gently changing direction, and turns
+    // away from the text, the edges and its neighbours.
+    function wander(p, dt) {
+      p.turn = Math.max(-0.015, Math.min(0.015, p.turn + (Math.random() - 0.5) * 0.003 * dt));
+      p.heading += p.turn * dt;
+      const step = (DRIFT / 60) * dt;
+      const nx = p.hx + Math.cos(p.heading) * step;
+      const ny = p.hy + Math.sin(p.heading) * step;
+      if (blocked(nx, ny, p.s / 2) || crowds(p, nx, ny)) {
+        p.heading += Math.PI * (0.5 + Math.random());
+      } else {
+        p.hx = nx;
+        p.hy = ny;
       }
     }
 
@@ -433,6 +468,7 @@
 
       for (const p of parts) {
         if (now < p.start) continue;
+        wander(p, dt);
         const dx = p.x - mx, dy = p.y - my, d2 = dx * dx + dy * dy;
         if (d2 < RADIUS * RADIUS && d2 > 0.01) {
           const d = Math.sqrt(d2), f = 1 - d / RADIUS, force = f * f * PUSH * dt;
