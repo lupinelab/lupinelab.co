@@ -67,8 +67,24 @@
 
     /* Intro */
     .intro {
+      position: relative;
       padding: 4rem 0 3.5rem;
       border-bottom: 2px solid var(--rule);
+    }
+
+    .intro > :not(canvas) {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Decorative emoji layer, drawn by the script at the end of the page */
+    .particles {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
     }
 
     h1 {
@@ -239,5 +255,220 @@
       <p>© 2026 Lupine Lab LLC · Park City, Utah</p>
     </footer>
   </div>
+
+  <script>
+  /* Hero emoji particles: emojis rest around the headline, scatter away
+     from the pointer and spring back. Purely decorative: the page reads
+     the same without it. */
+  (() => {
+    const hero = document.querySelector('.intro');
+    if (!hero || !window.requestAnimationFrame) return;
+
+    // The feel. Tune these.
+    const RADIUS = 120;     // how close the pointer has to be to push (px)
+    const PUSH = 5;         // how hard the pointer pushes
+    const SPRING = 0.018;   // how strongly emojis return home
+    const DAMPING = 0.86;   // lower = settles faster, higher = floatier
+    const BOB = 3;          // idle drift (px)
+    const TEXT_GAP = 14;    // space kept clear around the text (px)
+
+    const FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'particles';
+    canvas.setAttribute('aria-hidden', 'true');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    hero.prepend(canvas);
+
+    // 🪻 is a newer emoji; fall back to 🌸 where the device can't draw it.
+    function drawsInColor(emoji) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 32;
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.font = '24px ' + FONT;
+      x.textBaseline = 'top';
+      x.fillText(emoji, 2, 2);
+      const d = x.getImageData(0, 0, 32, 32).data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] > 0 && Math.max(Math.abs(d[i] - d[i + 1]), Math.abs(d[i + 1] - d[i + 2])) > 30) return true;
+      }
+      return false;
+    }
+    const lupine = drawsInColor('🪻') ? '🪻' : '🌸';
+    const MIX = [[lupine, 0.7], ['🌱', 0.15], ['✨', 0.15]];
+    function pickEmoji() {
+      let r = Math.random();
+      for (const [e, w] of MIX) { if ((r -= w) < 0) return e; }
+      return lupine;
+    }
+
+    // Draw each emoji once per size, then reuse the picture every frame.
+    const sprites = new Map();
+    function sprite(emoji, size, dpr) {
+      const key = emoji + size + '@' + dpr;
+      if (!sprites.has(key)) {
+        const px = Math.ceil(size * 1.3 * dpr);
+        const c = document.createElement('canvas');
+        c.width = c.height = px;
+        const x = c.getContext('2d');
+        x.font = size * dpr + 'px ' + FONT;
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.fillText(emoji, px / 2, px / 2 + size * dpr * 0.06);
+        sprites.set(key, c);
+      }
+      return sprites.get(key);
+    }
+
+    let W = 0, H = 0, dpr = 1, parts = [];
+
+    // Boxes around each line of the headline and subhead, kept clear of emojis.
+    function textBoxes(heroRect) {
+      const boxes = [];
+      hero.querySelectorAll('h1, .subhead').forEach((el) => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        for (const b of range.getClientRects()) {
+          boxes.push({
+            l: b.left - heroRect.left - TEXT_GAP,
+            t: b.top - heroRect.top - TEXT_GAP,
+            r: b.right - heroRect.left + TEXT_GAP,
+            b: b.bottom - heroRect.top + TEXT_GAP,
+          });
+        }
+      });
+      return boxes;
+    }
+
+    function layout(entrance) {
+      const rect = hero.getBoundingClientRect();
+      W = rect.width;
+      H = rect.height;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+
+      const boxes = textBoxes(rect);
+      const small = W < 600;
+      const [minS, maxS] = small ? [18, 26] : [22, 36];
+      const count = Math.round(Math.min(40, Math.max(12, (W * H) / 9000)));
+      const origin = { x: W / 2, y: H / 2 }; // "zero": everything starts here
+      const now = performance.now();
+
+      parts = [];
+      for (let tries = 0; parts.length < count && tries < count * 80; tries++) {
+        const s = Math.round(minS + Math.random() * (maxS - minS));
+        const r = s / 2;
+        const hx = r + Math.random() * (W - s);
+        const hy = r + Math.random() * (H - s);
+        if (boxes.some((b) => hx + r > b.l && hx - r < b.r && hy + r > b.t && hy - r < b.b)) continue;
+        if (parts.some((p) => Math.hypot(p.hx - hx, p.hy - hy) < (p.s + s) / 2 + 10)) continue;
+        const e = pickEmoji();
+        parts.push({
+          hx, hy, s,
+          img: sprite(e, s, dpr),
+          rot: (Math.random() - 0.5) * 0.5,
+          phase: Math.random() * Math.PI * 2,
+          x: entrance ? origin.x : hx,
+          y: entrance ? origin.y : hy,
+          vx: entrance ? (hx - origin.x) * 0.09 : 0,
+          vy: entrance ? (hy - origin.y) * 0.09 : 0,
+          start: entrance ? now + Math.random() * 250 : 0,
+        });
+      }
+    }
+
+    function draw(now) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of parts) {
+        if (now < p.start) continue;
+        const a = p.rot + Math.max(-0.4, Math.min(0.4, p.vx * 0.03));
+        const cos = Math.cos(a) * dpr, sin = Math.sin(a) * dpr;
+        const size = p.img.width / dpr;
+        ctx.globalAlpha = p.start ? Math.min(1, (now - p.start) / 350) : 1;
+        ctx.setTransform(cos, sin, -sin, cos, p.x * dpr, p.y * dpr);
+        ctx.drawImage(p.img, -size / 2, -size / 2, size, size);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Reduced motion: emojis sit still in their spots.
+    if (reduceMotion) {
+      const still = () => { layout(false); draw(0); };
+      still();
+      let lastW = W;
+      new ResizeObserver(() => { if (Math.abs(hero.clientWidth - lastW) > 1) { lastW = hero.clientWidth; still(); } }).observe(hero);
+      return;
+    }
+
+    // Pointer position, in page coordinates; far away when there isn't one.
+    const pointer = { x: -1e5, y: -1e5 };
+    const away = () => { pointer.x = pointer.y = -1e5; };
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      pointer.x = e.clientX; pointer.y = e.clientY;
+    }, { passive: true });
+    document.documentElement.addEventListener('mouseleave', away);
+    addEventListener('blur', away);
+    // Phones: a finger dragging across repels too. Passive, so scrolling is never blocked.
+    const onTouch = (e) => { const t = e.touches[0]; if (t) { pointer.x = t.clientX; pointer.y = t.clientY; } };
+    addEventListener('touchstart', onTouch, { passive: true });
+    addEventListener('touchmove', onTouch, { passive: true });
+    addEventListener('touchend', away, { passive: true });
+    addEventListener('touchcancel', away, { passive: true });
+
+    let running = false, onScreen = true, last = 0;
+
+    function frame(now) {
+      if (!onScreen || document.hidden) { running = false; return; }
+      const dt = Math.min(32, now - last) / 16.667; // 1 = one frame at 60fps
+      last = now;
+      const rect = canvas.getBoundingClientRect();
+      const mx = pointer.x - rect.left, my = pointer.y - rect.top;
+      const damp = Math.pow(DAMPING, dt);
+      const t = now / 1000;
+
+      for (const p of parts) {
+        if (now < p.start) continue;
+        const dx = p.x - mx, dy = p.y - my, d2 = dx * dx + dy * dy;
+        if (d2 < RADIUS * RADIUS && d2 > 0.01) {
+          const d = Math.sqrt(d2), f = 1 - d / RADIUS, force = f * f * PUSH * dt;
+          p.vx += (dx / d) * force;
+          p.vy += (dy / d) * force;
+        }
+        const homeX = p.hx + Math.cos(t * 0.6 + p.phase) * BOB * 0.6;
+        const homeY = p.hy + Math.sin(t * 0.8 + p.phase) * BOB;
+        p.vx = (p.vx + (homeX - p.x) * SPRING * dt) * damp;
+        p.vy = (p.vy + (homeY - p.y) * SPRING * dt) * damp;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+      }
+      draw(now);
+      requestAnimationFrame(frame);
+    }
+
+    function start() {
+      if (running || !onScreen || document.hidden) return;
+      running = true;
+      last = performance.now();
+      requestAnimationFrame(frame);
+    }
+
+    // Pause when the hero is scrolled away or the tab is in the background.
+    new IntersectionObserver((entries) => { onScreen = entries[0].isIntersecting; start(); }).observe(hero);
+    document.addEventListener('visibilitychange', start);
+
+    // Re-place emojis if the hero's width changes (rotating a phone, resizing a window).
+    layout(true);
+    let lastW = W;
+    new ResizeObserver(() => {
+      if (Math.abs(hero.clientWidth - lastW) > 1) { lastW = hero.clientWidth; layout(false); }
+    }).observe(hero);
+    start();
+  })();
+  </script>
 </body>
 </html>
