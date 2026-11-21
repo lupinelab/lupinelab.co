@@ -297,7 +297,7 @@
       return false;
     }
     const lupine = drawsInColor('🪻') ? '🪻' : '🌸';
-    const MIX = [[lupine, 0.7], ['🌱', 0.15], ['✨', 0.15]];
+    const MIX = [[lupine, 0.5], ['🌱', 0.25], ['✨', 0.25]];
     function pickEmoji() {
       let r = Math.random();
       for (const [e, w] of MIX) { if ((r -= w) < 0) return e; }
