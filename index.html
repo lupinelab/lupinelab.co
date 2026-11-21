@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lupinelab — Product design consultancy, from zero to one</title>
+  <meta name="description" content="lupinelab is a product design consultancy in Park City, Utah, led by Cassy Taylor. We design new products from scratch, and design and publish our own apps.">
+  <link rel="canonical" href="https://lupinelab.co/">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="data:,">
+  <style>
+    /* lupinelab.co — direction B: Swiss sans */
+
+    :root {
+      --bg: #ffffff;
+      --text: #111111;     /* 18.9:1 on white */
+      --muted: #595959;    /* 7.0:1 on white */
+      --accent: #5b4b8a;   /* lupine purple, 7.5:1 on white */
+      --rule: #5b4b8a;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 1.125rem;
+      line-height: 1.55;
+    }
+
+    .page {
+      max-width: 60rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 2.5rem;
+      min-height: 100vh;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    main {
+      flex: 1;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    /* Masthead */
+    .wordmark {
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    /* Intro */
+    .intro {
+      padding: 4rem 0 3.5rem;
+      border-bottom: 2px solid var(--rule);
+    }
+
+    h1 {
+      margin: 0 0 1.5rem;
+      font-size: clamp(2.5rem, 9vw, 5.5rem);
+      line-height: 1.02;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      max-width: 12ch;
+    }
+
+    .subhead {
+      font-size: clamp(1.25rem, 2.6vw, 1.5rem);
+      line-height: 1.4;
+      max-width: 32ch;
+    }
+
+    /* Label | content rows */
+    .row {
+      display: grid;
+      gap: 0.5rem;
+      padding: 2rem 0;
+      border-bottom: 1px solid #e3e3e3;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-top: 0.3rem;
+    }
+
+    .row p {
+      max-width: 36rem;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.2em;
+    }
+
+    a:hover {
+      text-decoration-thickness: 2px;
+    }
+
+    a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+
+    /* Footer */
+    .footer {
+      padding-top: 3rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    /* Desktop: two-column grid */
+    @media (min-width: 48rem) {
+      .page {
+        padding: 3rem 2.5rem;
+      }
+
+      .intro {
+        padding: 6rem 0 4.5rem;
+      }
+
+      .row {
+        grid-template-columns: 12rem 1fr;
+        gap: 2rem;
+        padding: 2.25rem 0;
+      }
+
+      .footer {
+        padding-left: 14rem;
+      }
+    }
+  </style>
+
+  <!-- Share previews (iMessage, Slack, LinkedIn, X) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lupinelab">
+  <meta property="og:url" content="https://lupinelab.co/">
+  <meta property="og:title" content="lupinelab — Product design, from zero to one">
+  <meta property="og:description" content="lupinelab is a product design consultancy. We also design and publish our own apps.">
+  <meta property="og:image" content="https://lupinelab.co/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lupinelab: Product design, from zero to one.">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Structured data: who runs this site -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://lupinelab.co/#org",
+        "name": "Lupine Lab LLC",
+        "alternateName": "lupinelab",
+        "url": "https://lupinelab.co/",
+        "email": "hello@lupinelab.co",
+        "description": "A product design consultancy that also designs and publishes its own apps.",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Park City",
+          "addressRegion": "UT",
+          "addressCountry": "US"
+        },
+        "founder": { "@id": "https://lupinelab.co/#cassy" }
+      },
+      {
+        "@type": "Person",
+        "@id": "https://lupinelab.co/#cassy",
+        "name": "Cassy Taylor",
+        "jobTitle": "Product designer",
+        "worksFor": { "@id": "https://lupinelab.co/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://lupinelab.co/#website",
+        "url": "https://lupinelab.co/",
+        "name": "lupinelab",
+        "publisher": { "@id": "https://lupinelab.co/#org" },
+        "inLanguage": "en-US"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <p class="wordmark">lupinelab</p>
+    </header>
+
+    <main>
+      <section class="intro">
+        <h1>Product design, from zero to one.</h1>
+        <p class="subhead">lupinelab is a product design consultancy. We also design and publish our own apps.</p>
+      </section>
+
+      <section class="row" aria-labelledby="about">
+        <h2 id="about">About</h2>
+        <p>lupinelab is led by Cassy Taylor, a product designer since 2011. Most of her work has been building new products from scratch, including at Mailchimp and QuickBooks.</p>
+      </section>
+
+      <section class="row" aria-labelledby="apps">
+        <h2 id="apps">Apps</h2>
+        <p>Reading Eras, coming soon to iPhone and Android.</p>
+      </section>
+
+      <section class="row" aria-labelledby="contact">
+        <h2 id="contact">Contact</h2>
+        <p><a href="mailto:hello@lupinelab.co">hello@lupinelab.co</a></p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>© 2026 Lupine Lab LLC · Park City, Utah</p>
+    </footer>
+  </div>
+</body>
+</html>

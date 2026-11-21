@@ -1,0 +1,5 @@
+# All crawlers welcome, including search engines and AI assistants.
+User-agent: *
+Allow: /
+
+Sitemap: https://lupinelab.co/sitemap.xml
