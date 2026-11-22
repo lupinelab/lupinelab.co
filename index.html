@@ -87,6 +87,29 @@
       pointer-events: none;
     }
 
+    /* iPhone-only button that asks for motion access (added by the script) */
+    .intro > .tilt-button {
+      position: absolute;
+      right: 0;
+      bottom: 0.75rem;
+      z-index: 2;
+      min-height: 44px;
+      padding: 0.5rem 1rem;
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .intro > .tilt-button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
     h1 {
       margin: 0 0 1.5rem;
       font-size: clamp(2.5rem, 9vw, 5.5rem);
@@ -271,6 +294,9 @@
     const DAMPING = 0.86;   // lower = settles faster, higher = floatier
     const BOB = 3;          // idle bob (px)
     const DRIFT = 5;        // how fast resting spots wander (px per second)
+    const TILT_REACH = 50;  // how far emojis lean at a strong tilt (px)
+    const TILT_MAX = 30;    // degrees of tilt that count as "strong"
+    const TILT_SETTLE = 4;  // seconds until a held tilt counts as level again
     const TEXT_GAP = 14;    // space kept clear around the text (px)
 
     const FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -328,6 +354,14 @@
     // Boxes around each line of the headline and subhead, kept clear of emojis.
     function textBoxes(heroRect) {
       const boxes = [];
+      const button = hero.querySelector('.tilt-button:not([hidden])');
+      if (button) {
+        const b = button.getBoundingClientRect();
+        boxes.push({
+          l: b.left - heroRect.left - TEXT_GAP, t: b.top - heroRect.top - TEXT_GAP,
+          r: b.right - heroRect.left + TEXT_GAP, b: b.bottom - heroRect.top + TEXT_GAP,
+        });
+      }
       hero.querySelectorAll('h1, .subhead').forEach((el) => {
         const range = document.createRange();
         range.selectNodeContents(el);
@@ -373,6 +407,7 @@
           rot: (Math.random() - 0.5) * 0.5,
           phase: Math.random() * Math.PI * 2,
           heading: Math.random() * Math.PI * 2,
+          weight: 0.7 + Math.random() * 0.6,
           turn: 0,
           x: entrance ? origin.x : hx,
           y: entrance ? origin.y : hy,
@@ -455,6 +490,67 @@
     addEventListener('touchend', away, { passive: true });
     addEventListener('touchcancel', away, { passive: true });
 
+    // Phone tilt: emojis lean toward the low side, and settle back when the
+    // phone is level (or has been held at the same angle for a few seconds).
+    // Readings stay on the device; nothing is sent or stored.
+    const tilt = { x: 0, y: 0 };
+    const isPhone = matchMedia('(pointer: coarse)').matches && 'DeviceOrientationEvent' in window;
+    let neutral = null, smooth = { x: 0, y: 0 }, lastTilt = 0;
+
+    function onOrientation(e) {
+      if (e.beta == null || e.gamma == null) return;
+      // Turn the sensor's angles into "right" and "down" for how the screen is held.
+      const angle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+      const b = e.beta, g = e.gamma;
+      let x = g, y = b;
+      if (angle === 90) { x = b; y = -g; }
+      else if (angle === -90 || angle === 270) { x = -b; y = g; }
+      else if (angle === 180) { x = -g; y = -b; }
+
+      const now = performance.now();
+      const secs = lastTilt ? Math.min(0.5, (now - lastTilt) / 1000) : 0;
+      lastTilt = now;
+      if (!neutral) neutral = { x, y };
+      // The "level" angle slowly follows how the phone is being held.
+      const follow = 1 - Math.exp(-secs / TILT_SETTLE);
+      neutral.x += (x - neutral.x) * follow;
+      neutral.y += (y - neutral.y) * follow;
+      // Smooth out hand tremor.
+      smooth.x += (x - neutral.x - smooth.x) * 0.2;
+      smooth.y += (y - neutral.y - smooth.y) * 0.2;
+      const clamp = (v) => Math.max(-1, Math.min(1, v / TILT_MAX));
+      tilt.x = clamp(smooth.x) * TILT_REACH;
+      tilt.y = clamp(smooth.y) * TILT_REACH;
+    }
+
+    function listenForTilt() {
+      neutral = null;
+      addEventListener('deviceorientation', onOrientation);
+    }
+
+    if (isPhone) {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // iPhone: Apple only allows asking after a tap, so offer a small button.
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tilt-button';
+        button.textContent = '✨ Tilt me';
+        hero.append(button);
+        button.addEventListener('click', () => {
+          DeviceOrientationEvent.requestPermission()
+            .then((state) => { if (state === 'granted') listenForTilt(); })
+            .catch(() => {})
+            .finally(() => {
+              button.hidden = true;
+              boxes = textBoxes(hero.getBoundingClientRect());
+            });
+        });
+      } else {
+        // Android and others: no permission needed.
+        listenForTilt();
+      }
+    }
+
     let running = false, onScreen = true, last = 0;
 
     function frame(now) {
@@ -475,8 +571,8 @@
           p.vx += (dx / d) * force;
           p.vy += (dy / d) * force;
         }
-        const homeX = p.hx + Math.cos(t * 0.6 + p.phase) * BOB * 0.6;
-        const homeY = p.hy + Math.sin(t * 0.8 + p.phase) * BOB;
+        const homeX = p.hx + Math.cos(t * 0.6 + p.phase) * BOB * 0.6 + tilt.x * p.weight;
+        const homeY = p.hy + Math.sin(t * 0.8 + p.phase) * BOB + tilt.y * p.weight;
         p.vx = (p.vx + (homeX - p.x) * SPRING * dt) * damp;
         p.vy = (p.vy + (homeY - p.y) * SPRING * dt) * damp;
         p.x += p.vx * dt;
